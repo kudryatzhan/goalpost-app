@@ -14,11 +14,15 @@ let appDelegate = UIApplication.shared.delegate as? AppDelegate
 class GoalsVC: UIViewController {
     
     @IBOutlet weak var tableView: UITableView!
+    @IBOutlet weak var goalRemovedView: UIView!
     
     var goals: [Goal] = []
     
+    var removedGoal: Goal?
+    
     override func viewDidLoad() {
         super.viewDidLoad()
+        
         
         tableView.delegate = self
         tableView.dataSource = self
@@ -49,6 +53,30 @@ class GoalsVC: UIViewController {
         guard let createGoalVC = storyboard?.instantiateViewController(withIdentifier: "CreateGoalVC") else { return }
         
         presentDetail(createGoalVC)
+    }
+    
+    @IBAction func undoGoalRemoveTapped(_ sender: UIButton) {
+        guard let managedContext = appDelegate?.persistentContainer.viewContext else { return }
+        let goal = Goal(context: managedContext)
+        
+        print(removedGoal)
+        goal.goalDescription = removedGoal?.description
+        goal.goalType = removedGoal?.goalType
+        goal.goalCompletionValue = removedGoal!.goalCompletionValue
+        goal.goalProgress = removedGoal!.goalProgress
+        
+        do {
+            try managedContext.save()
+            print("Successfully saved data")
+        } catch {
+            debugPrint("Could not saved: \(error)")
+        }
+        
+        fetchCoreDataObjects()
+        
+        tableView.reloadData()
+        
+        goalRemovedView.isHidden = true
     }
 }
 
@@ -119,10 +147,14 @@ extension GoalsVC {
     
     func removeGoal(atIndexPath indexPath: IndexPath) {
         guard let managedContext = appDelegate?.persistentContainer.viewContext else { return }
+        removedGoal = goals[indexPath.row]
         managedContext.delete(goals[indexPath.row])
         
         do {
             try managedContext.save()
+        
+            goalRemovedView.isHidden = false
+            
             print("Successfully removed goal")
         } catch {
             debugPrint("Could not remove: \(error)")
